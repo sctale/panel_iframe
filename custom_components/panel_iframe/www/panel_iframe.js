@@ -4,12 +4,16 @@
  */
 class HaPanelIframe extends HTMLElement {
 
+  // iframe 加载超时（毫秒）
+  static get IFRAME_TIMEOUT() { return 30000; }
+
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this._panel = null;
     this._hass = null;
     this._narrow = false;
+    this._loadTimer = null;
   }
 
   set panel(panel) {
@@ -26,6 +30,18 @@ class HaPanelIframe extends HTMLElement {
     this._narrow = narrow;
     this._updateMenuButton();
     this._render();
+  }
+
+  disconnectedCallback() {
+    if (this._loadTimer) {
+      clearTimeout(this._loadTimer);
+      this._loadTimer = null;
+    }
+  }
+
+  /** 获取 iframe sandbox 权限 */
+  _getSandbox() {
+    return 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads';
   }
 
   /** 更新 Shadow DOM 内的 ha-menu-button 属性 */
@@ -162,34 +178,68 @@ class HaPanelIframe extends HTMLElement {
         .iframe-wrapper.loaded { display: block; }
         .iframe-wrapper.loaded ~ .loading { display: none; }
         iframe { border: none; width: 100%; height: 100%; }
-        .nav-btn { position: fixed; bottom: 16px; right: 16px; z-index: 10;
-          background: var(--card-background-color, white); border-radius: 50%;
+        .toolbar-btns { position: fixed; bottom: 16px; right: 16px; z-index: 10;
+          display: flex; gap: 8px; }
+        .nav-btn { background: var(--card-background-color, white); border-radius: 50%;
           box-shadow: 0 2px 8px rgba(0,0,0,0.2); width: 48px; height: 48px;
           display: flex; align-items: center; justify-content: center; cursor: pointer;
           border: none; }
         .nav-btn:hover { background: var(--secondary-background-color, #f5f5f5); }
+        .timeout-msg { color: var(--error-color, #db4437); margin-top: 12px; font-size: 14px; }
       </style>
       <div class="iframe-wrapper">
-        <iframe title="${safeTitle}" allow="fullscreen" src="${safeUrl}"></iframe>
+        <iframe title="${safeTitle}" sandbox="${this._getSandbox()}"
+          referrerpolicy="no-referrer" loading="lazy"
+          allow="fullscreen" src="${safeUrl}"></iframe>
       </div>
       <div class="loading" role="status"><div class="spinner" aria-hidden="true"></div>加载中...</div>
+      <div class="toolbar-btns"></div>
     `;
 
     const wrapper = this.shadowRoot.querySelector('.iframe-wrapper');
     const iframe = this.shadowRoot.querySelector('iframe');
+    const loadingEl = this.shadowRoot.querySelector('.loading');
+    const btnsContainer = this.shadowRoot.querySelector('.toolbar-btns');
+
+    // 加载超时处理
+    this._loadTimer = setTimeout(() => {
+      if (!wrapper.classList.contains('loaded')) {
+        const msg = document.createElement('div');
+        msg.className = 'timeout-msg';
+        msg.textContent = '加载超时，请检查链接是否可访问';
+        loadingEl.appendChild(msg);
+      }
+    }, this.constructor.IFRAME_TIMEOUT);
+
     iframe.addEventListener('load', () => {
+      if (this._loadTimer) {
+        clearTimeout(this._loadTimer);
+        this._loadTimer = null;
+      }
       wrapper.classList.add('loaded');
     });
 
-    // 移动端导航按钮
+    // 刷新按钮
+    const refreshBtn = document.createElement('button');
+    refreshBtn.className = 'nav-btn';
+    refreshBtn.title = '刷新';
+    refreshBtn.setAttribute('aria-label', '刷新页面');
+    refreshBtn.innerHTML = '<ha-icon icon="mdi:refresh" style="color:var(--primary-text-color)"></ha-icon>';
+    refreshBtn.addEventListener('click', () => {
+      wrapper.classList.remove('loaded');
+      iframe.src = safeUrl;
+    });
+    btnsContainer.appendChild(refreshBtn);
+
+    // 移动端菜单按钮
     if (this._narrow) {
-      const btn = document.createElement('button');
-      btn.className = 'nav-btn';
-      btn.title = '打开菜单';
-      btn.setAttribute('aria-label', '打开侧边栏菜单');
-      btn.innerHTML = '<ha-icon icon="mdi:menu" style="color:var(--primary-text-color)"></ha-icon>';
-      btn.addEventListener('click', this._toggleMenu.bind(this));
-      this.shadowRoot.appendChild(btn);
+      const menuBtn = document.createElement('button');
+      menuBtn.className = 'nav-btn';
+      menuBtn.title = '打开菜单';
+      menuBtn.setAttribute('aria-label', '打开侧边栏菜单');
+      menuBtn.innerHTML = '<ha-icon icon="mdi:menu" style="color:var(--primary-text-color)"></ha-icon>';
+      menuBtn.addEventListener('click', this._toggleMenu.bind(this));
+      btnsContainer.appendChild(menuBtn);
     }
   }
 
@@ -210,10 +260,16 @@ class HaPanelIframe extends HTMLElement {
         @media (max-width: 599px) { .toolbar { padding: 4px; } }
         ha-menu-button { pointer-events: auto; }
         .main-title { margin: 0 0 0 24px; line-height: 20px; flex-grow: 1; }
+        .toolbar-actions { pointer-events: auto; display: flex; gap: 4px; }
+        .toolbar-actions button { background: none; border: none; cursor: pointer;
+          color: var(--app-header-text-color, white); padding: 4px 8px;
+          border-radius: 4px; opacity: 0.7; }
+        .toolbar-actions button:hover { opacity: 1; background: rgba(255,255,255,0.1); }
         .content { position: relative; width: 100%;
           height: calc(100% - 1px - var(--header-height)); }
         .loading { display: flex; align-items: center; justify-content: center;
-          height: 100%; color: var(--secondary-text-color, #666); }
+          height: 100%; color: var(--secondary-text-color, #666);
+          flex-direction: column; }
         .spinner { width: 32px; height: 32px; border: 3px solid var(--divider-color, #e0e0e0);
           border-top-color: var(--primary-color); border-radius: 50%;
           animation: spin 0.8s linear infinite; margin-right: 12px; }
@@ -222,14 +278,20 @@ class HaPanelIframe extends HTMLElement {
         .iframe-wrapper.loaded { display: block; }
         .iframe-wrapper.loaded ~ .loading { display: none; }
         iframe { border: none; width: 100%; height: 100%; }
+        .timeout-msg { color: var(--error-color, #db4437); margin-top: 12px; font-size: 14px; }
       </style>
       <div class="toolbar" role="banner">
         <ha-menu-button></ha-menu-button>
         <div class="main-title">${safeTitle}</div>
+        <div class="toolbar-actions">
+          <button title="刷新" aria-label="刷新页面" class="refresh-btn">&#x21bb;</button>
+        </div>
       </div>
       <div class="content">
         <div class="iframe-wrapper">
-          <iframe title="${safeTitle}" allow="fullscreen" src="/panel_iframe_www/index.html?mode=${mode}&url=${encodeURIComponent(url)}"></iframe>
+          <iframe title="${safeTitle}" sandbox="${this._getSandbox()}"
+            referrerpolicy="no-referrer" loading="lazy"
+            allow="fullscreen" src="/panel_iframe_www/index.html?mode=${mode}&url=${encodeURIComponent(url)}"></iframe>
         </div>
         <div class="loading" role="status"><div class="spinner" aria-hidden="true"></div>加载中...</div>
       </div>
@@ -237,8 +299,31 @@ class HaPanelIframe extends HTMLElement {
 
     const wrapper = this.shadowRoot.querySelector('.iframe-wrapper');
     const iframe = this.shadowRoot.querySelector('iframe');
+    const loadingEl = this.shadowRoot.querySelector('.loading');
+    const refreshBtn = this.shadowRoot.querySelector('.refresh-btn');
+
+    // 加载超时处理
+    this._loadTimer = setTimeout(() => {
+      if (!wrapper.classList.contains('loaded')) {
+        const msg = document.createElement('div');
+        msg.className = 'timeout-msg';
+        msg.textContent = '加载超时，请检查链接是否可访问';
+        loadingEl.appendChild(msg);
+      }
+    }, this.constructor.IFRAME_TIMEOUT);
+
     iframe.addEventListener('load', () => {
+      if (this._loadTimer) {
+        clearTimeout(this._loadTimer);
+        this._loadTimer = null;
+      }
       wrapper.classList.add('loaded');
+    });
+
+    // 刷新按钮
+    refreshBtn.addEventListener('click', () => {
+      wrapper.classList.remove('loaded');
+      iframe.src = iframe.src;
     });
 
     this._updateMenuButton();

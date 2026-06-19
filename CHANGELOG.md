@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.1 (2026-06-19)
+
+### 安全
+- iframe 添加 `sandbox` 属性限制权限（allow-scripts/allow-same-origin/allow-forms/allow-popups 等）
+- iframe 添加 `referrerpolicy="no-referrer"` 防止 Referer 信息泄露
+
+### 新增
+- iframe 添加 `loading="lazy"` 延迟加载属性
+- iframe 加载超时处理（30秒），超时显示提示信息
+- 全屏模式添加刷新按钮（右下角浮动按钮）
+- 默认模式工具栏添加刷新按钮
+- `disconnectedCallback()` 生命周期方法，清理加载超时定时器
+- `_getSandbox()` 方法统一管理 iframe sandbox 权限
+
+### 变更
+- 全屏模式移动端菜单按钮与刷新按钮合并到同一浮动按钮容器
+- 默认模式加载状态改为纵向排列（spinner + 文字 + 超时提示）
+
 ## 0.3.0 (2026-06-19)
 
 ### 新增
