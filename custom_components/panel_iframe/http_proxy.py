@@ -9,6 +9,9 @@ from urllib.parse import urlparse
 class HttpProxy:
     """HTTP 反向代理，用于在 HA 内访问外部页面"""
 
+    # 类级别 ClientSession，跨请求复用
+    _session: aiohttp.ClientSession | None = None
+
     def __init__(self, url: str):
         parsed_url = urlparse(url)
         route_path = parsed_url.path.strip('/')
@@ -22,6 +25,20 @@ class HttpProxy:
         self.proxy_scheme = parsed_url.scheme or 'http'
         self.proxy_host = parsed_url.netloc
         self.proxy_path = route_path
+
+    @classmethod
+    def _get_session(cls) -> aiohttp.ClientSession:
+        """获取或创建复用的 ClientSession"""
+        if cls._session is None or cls._session.closed:
+            cls._session = aiohttp.ClientSession()
+        return cls._session
+
+    @classmethod
+    async def cleanup(cls):
+        """清理 ClientSession（集成卸载时调用）"""
+        if cls._session and not cls._session.closed:
+            await cls._session.close()
+            cls._session = None
 
     def register(self, router):
         """注册路由"""
@@ -53,19 +70,19 @@ class HttpProxy:
         if request.query_string:
             target += '?' + request.query_string
 
-        async with aiohttp.ClientSession() as session:
-            async with session.request(
-                method=request.method,
-                url=target,
-                headers={k: v for k, v in request.headers.items()
-                         if k.lower() not in ('host', 'transfer-encoding')},
-                data=await request.read(),
-                ssl=False,
-            ) as resp:
-                headers = {k: v for k, v in resp.headers.items()
-                           if k.lower() != 'transfer-encoding'}
-                body = await resp.read()
-                return web.Response(body=body, status=resp.status, headers=headers)
+        session = self._get_session()
+        async with session.request(
+            method=request.method,
+            url=target,
+            headers={k: v for k, v in request.headers.items()
+                     if k.lower() not in ('host', 'transfer-encoding')},
+            data=await request.read(),
+            ssl=False,
+        ) as resp:
+            headers = {k: v for k, v in resp.headers.items()
+                       if k.lower() != 'transfer-encoding'}
+            body = await resp.read()
+            return web.Response(body=body, status=resp.status, headers=headers)
 
     async def websocket_handler(self, request, target_url):
         """WebSocket 代理"""
@@ -73,20 +90,20 @@ class HttpProxy:
         await ws_server.prepare(request)
 
         target = target_url + self.get_path(request)
-        async with aiohttp.ClientSession() as session:
-            async with session.ws_connect(target) as ws_client:
-                async def ws_forward(ws_from, ws_to):
-                    async for msg in ws_from:
-                        if msg.type == aiohttp.WSMsgType.TEXT:
-                            await ws_to.send_str(msg.data)
-                        elif msg.type == aiohttp.WSMsgType.BINARY:
-                            await ws_to.send_bytes(msg.data)
-                        elif msg.type == aiohttp.WSMsgType.CLOSE:
-                            await ws_to.close()
+        session = self._get_session()
+        async with session.ws_connect(target) as ws_client:
+            async def ws_forward(ws_from, ws_to):
+                async for msg in ws_from:
+                    if msg.type == aiohttp.WSMsgType.TEXT:
+                        await ws_to.send_str(msg.data)
+                    elif msg.type == aiohttp.WSMsgType.BINARY:
+                        await ws_to.send_bytes(msg.data)
+                    elif msg.type == aiohttp.WSMsgType.CLOSE:
+                        await ws_to.close()
 
-                await asyncio.gather(
-                    ws_forward(ws_server, ws_client),
-                    ws_forward(ws_client, ws_server)
-                )
+            await asyncio.gather(
+                ws_forward(ws_server, ws_client),
+                ws_forward(ws_client, ws_server)
+            )
 
         return ws_server

@@ -7,38 +7,36 @@ from homeassistant.components import frontend
 from homeassistant.components.panel_custom import async_register_panel
 import homeassistant.helpers.config_validation as cv
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_URL, CONF_MODE, CONF_ICON, CONF_REQUIRE_ADMIN, CONF_PROXY_ACCESS
 from .http_proxy import HttpProxy
 
 CONFIG_SCHEMA = cv.deprecated(DOMAIN)
 
-_STATIC_PATH_REGISTERED = False
+STATIC_PATH_KEY = f"{DOMAIN}_static_path_registered"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """设置配置项"""
     # 注册静态资源路径（仅需注册一次）
-    global _STATIC_PATH_REGISTERED
-    if not _STATIC_PATH_REGISTERED:
+    if not hass.data.get(STATIC_PATH_KEY):
         www_path = hass.config.path("custom_components", DOMAIN, "www")
         await hass.http.async_register_static_paths(
             [StaticPathConfig("/panel_iframe_www", www_path, False)]
         )
-        _STATIC_PATH_REGISTERED = True
+        hass.data[STATIC_PATH_KEY] = True
 
     # 添加面板
     cfg = entry.options
     url_path = entry.entry_id
     title = entry.title
-    mode = cfg.get("mode")
-    icon = cfg.get("icon")
-    url = cfg.get("url")
-    require_admin = cfg.get("require_admin")
-    proxy_access = cfg.get("proxy_access", False)
+    mode = cfg.get(CONF_MODE)
+    icon = cfg.get(CONF_ICON)
+    url = cfg.get(CONF_URL)
+    require_admin = cfg.get(CONF_REQUIRE_ADMIN)
+    proxy_access = cfg.get(CONF_PROXY_ACCESS, False)
 
     if url is not None:
-        version = entry.version
-        module_url = f"/panel_iframe_www/panel_iframe.js?v={version}"
+        module_url = f"/panel_iframe_www/panel_iframe.js?v={entry.version}"
 
         if proxy_access:
             proxy = HttpProxy(url)
@@ -71,3 +69,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     url_path = entry.entry_id
     frontend.async_remove_panel(hass, url_path)
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """移除配置项时清理"""
+    # 清理代理 session
+    await HttpProxy.cleanup()

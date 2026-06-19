@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.3 (2026-06-19)
+
+### 变更
+- `http_proxy.py` ClientSession 改为类级别复用，避免每次请求创建新连接
+- `http_proxy.py` 新增 `cleanup()` 方法，集成卸载时正确关闭 session
+- `__init__.py` 使用 `hass.data` 替代全局变量存储静态路径注册状态
+- `__init__.py` 新增 `async_remove_entry` 钩子，移除配置项时清理代理资源
+- `__init__.py` 使用 `const.py` 常量替代硬编码配置键名
+
 ## 0.2.2 (2026-06-19)
 
 ### 新增
