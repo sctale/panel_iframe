@@ -105,6 +105,13 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await async_setup_entry(hass, entry)
 
 
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """重新加载配置项（HA 2025.1+ 标准）"""
+    _LOGGER.debug("重新加载面板: %s", entry.title)
+    await async_unload_entry(hass, entry)
+    await async_setup_entry(hass, entry)
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """卸载配置项"""
     url_path = entry.entry_id

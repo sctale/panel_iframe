@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.4 (2026-06-19)
+
+### 新增
+- `panel_iframe.js` 添加 `connectedCallback` 生命周期方法，仅在组件已连接 DOM 时渲染
+- `__init__.py` 添加 `async_reload_entry` 方法（HA 2025.1+ 标准）
+- `index.html` 添加 CSP meta 标签
+- README 新增「诊断与修复」章节
+
+### 变更
+- `panel_iframe.js` 新页面模式改为直接 `window.open()` 打开新标签页，不再经过 index.html 中间跳转
+- `panel_iframe.js` `set panel` 和 `set narrow` 添加 `isConnected` 检查，避免未挂载时渲染
+
+### 性能
+- 新页面模式减少一次中间页面跳转，打开速度更快
+
 ## 0.3.3 (2026-06-19)
 
 ### 新增

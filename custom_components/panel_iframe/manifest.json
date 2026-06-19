@@ -1,7 +1,7 @@
 {
     "domain": "panel_iframe",
     "name": "侧边栏面板",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "config_flow": true,
     "integration_type": "service",
     "documentation": "https://github.com/sctale/panel_iframe",

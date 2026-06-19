@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/Home-Assistant-%23049cdb)](https://www.home-assistant.io/)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
-[![version](https://img.shields.io/badge/version-0.3.3-blue)](https://github.com/sctale/panel_iframe)
+[![version](https://img.shields.io/badge/version-0.3.4-blue)](https://github.com/sctale/panel_iframe)
 
 在 Home Assistant 侧边栏添加自定义 iframe 面板，支持将任意网页嵌入到 HA 界面中。
 
@@ -136,11 +136,21 @@
 - **部分网站禁止嵌入**：某些网站设置了 `X-Frame-Options` 或 `Content-Security-Policy` 头，会阻止被 iframe 嵌入
 - **不支持 YAML 配置**：本改版仅支持 UI 配置流，不支持 `configuration.yaml` 方式
 
+## 诊断与修复
+
+### 诊断信息
+
+在集成页面点击面板集成 → 右上角 ⋯ → 下载诊断，可获取配置信息用于问题排查（URL 中的敏感信息会自动脱敏）。
+
+### 修复建议
+
+如果仍使用 YAML 配置方式，HA 修复页面会显示弃用警告，请迁移到 UI 配置流。
+
 ## 兼容性
 
 | HA 版本 | 插件版本 | 状态 |
 |---------|---------|------|
-| 2025.1+ | 0.3.3 | 兼容 |
+| 2025.1+ | 0.3.4 | 兼容 |
 
 ## 许可证
 

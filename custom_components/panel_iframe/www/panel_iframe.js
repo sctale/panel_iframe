@@ -18,7 +18,9 @@ class HaPanelIframe extends HTMLElement {
 
   set panel(panel) {
     this._panel = panel;
-    this._render();
+    if (this.isConnected) {
+      this._render();
+    }
   }
 
   set hass(hass) {
@@ -29,7 +31,15 @@ class HaPanelIframe extends HTMLElement {
   set narrow(narrow) {
     this._narrow = narrow;
     this._updateMenuButton();
-    this._render();
+    if (this.isConnected) {
+      this._render();
+    }
+  }
+
+  connectedCallback() {
+    if (this._panel) {
+      this._render();
+    }
   }
 
   disconnectedCallback() {
@@ -99,6 +109,12 @@ class HaPanelIframe extends HTMLElement {
     const { config, title } = this._panel;
     const url = this._normalizeUrl(config.url);
     const mode = config.mode;
+
+    // 新页面模式 - 直接打开新标签页
+    if (mode === '2') {
+      window.open(url, '_blank', 'noreferrer,noopener');
+      return;
+    }
 
     // 内置页面 - 在 HA 内部导航（使用原始路径，不规范化）
     if (mode === '3') {
