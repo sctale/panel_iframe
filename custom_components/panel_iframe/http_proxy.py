@@ -1,9 +1,16 @@
 """HTTP 代理模块 - 处理跨域请求和 WebSocket 代理"""
 
 import asyncio
+import logging
+
 import aiohttp
 from aiohttp import web
 from urllib.parse import urlparse
+
+_LOGGER = logging.getLogger(__name__)
+
+# 代理请求超时（秒）
+PROXY_TIMEOUT = aiohttp.ClientTimeout(total=30)
 
 
 class HttpProxy:
@@ -30,7 +37,7 @@ class HttpProxy:
     def _get_session(cls) -> aiohttp.ClientSession:
         """获取或创建复用的 ClientSession"""
         if cls._session is None or cls._session.closed:
-            cls._session = aiohttp.ClientSession()
+            cls._session = aiohttp.ClientSession(timeout=PROXY_TIMEOUT)
         return cls._session
 
     @classmethod
@@ -39,6 +46,7 @@ class HttpProxy:
         if cls._session and not cls._session.closed:
             await cls._session.close()
             cls._session = None
+            _LOGGER.debug("代理 ClientSession 已关闭")
 
     def register(self, router):
         """注册路由"""
@@ -71,18 +79,33 @@ class HttpProxy:
             target += '?' + request.query_string
 
         session = self._get_session()
-        async with session.request(
-            method=request.method,
-            url=target,
-            headers={k: v for k, v in request.headers.items()
-                     if k.lower() not in ('host', 'transfer-encoding')},
-            data=await request.read(),
-            ssl=False,
-        ) as resp:
-            headers = {k: v for k, v in resp.headers.items()
-                       if k.lower() != 'transfer-encoding'}
-            body = await resp.read()
-            return web.Response(body=body, status=resp.status, headers=headers)
+        try:
+            async with session.request(
+                method=request.method,
+                url=target,
+                headers={k: v for k, v in request.headers.items()
+                         if k.lower() not in ('host', 'transfer-encoding')},
+                data=await request.read(),
+                ssl=False,
+            ) as resp:
+                headers = {k: v for k, v in resp.headers.items()
+                           if k.lower() != 'transfer-encoding'}
+                body = await resp.read()
+                return web.Response(body=body, status=resp.status, headers=headers)
+        except aiohttp.ClientError as err:
+            _LOGGER.warning("代理请求失败 %s: %s", target, err)
+            return web.Response(
+                status=502,
+                text=f"代理请求失败: {err}",
+                content_type="text/plain",
+            )
+        except asyncio.TimeoutError:
+            _LOGGER.warning("代理请求超时 %s", target)
+            return web.Response(
+                status=504,
+                text="代理请求超时",
+                content_type="text/plain",
+            )
 
     async def websocket_handler(self, request, target_url):
         """WebSocket 代理"""
@@ -91,19 +114,22 @@ class HttpProxy:
 
         target = target_url + self.get_path(request)
         session = self._get_session()
-        async with session.ws_connect(target) as ws_client:
-            async def ws_forward(ws_from, ws_to):
-                async for msg in ws_from:
-                    if msg.type == aiohttp.WSMsgType.TEXT:
-                        await ws_to.send_str(msg.data)
-                    elif msg.type == aiohttp.WSMsgType.BINARY:
-                        await ws_to.send_bytes(msg.data)
-                    elif msg.type == aiohttp.WSMsgType.CLOSE:
-                        await ws_to.close()
+        try:
+            async with session.ws_connect(target) as ws_client:
+                async def ws_forward(ws_from, ws_to):
+                    async for msg in ws_from:
+                        if msg.type == aiohttp.WSMsgType.TEXT:
+                            await ws_to.send_str(msg.data)
+                        elif msg.type == aiohttp.WSMsgType.BINARY:
+                            await ws_to.send_bytes(msg.data)
+                        elif msg.type == aiohttp.WSMsgType.CLOSE:
+                            await ws_to.close()
 
-            await asyncio.gather(
-                ws_forward(ws_server, ws_client),
-                ws_forward(ws_client, ws_server)
-            )
-
-        return ws_server
+                await asyncio.gather(
+                    ws_forward(ws_server, ws_client),
+                    ws_forward(ws_client, ws_server)
+                )
+        except aiohttp.ClientError as err:
+            _LOGGER.warning("WebSocket 代理连接失败 %s: %s", target, err)
+        finally:
+            return ws_server

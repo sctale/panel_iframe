@@ -78,7 +78,8 @@ class PanelIframeConfigFlow(ConfigFlow, domain=DOMAIN):
 class PanelIframeOptionsFlow(OptionsFlow):
     """处理选项流程"""
 
-    def __init__(self, entry):
+    def __init__(self, entry: ConfigEntry) -> None:
+        """初始化选项流程"""
         super().__init__()
         self._entry = entry
 

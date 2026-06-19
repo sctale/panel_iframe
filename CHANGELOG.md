@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.5 (2026-06-19)
+
+### 新增
+- `__init__.py` 添加 `_LOGGER` 日志记录器，记录面板添加/移除/更新/代理注册等关键操作
+- `http_proxy.py` 添加 `_LOGGER` 日志记录器，记录代理请求失败和超时
+- `http_proxy.py` 添加代理请求异常处理：`ClientError` 返回 502、`TimeoutError` 返回 504
+- `http_proxy.py` 添加 WebSocket 代理连接失败的异常捕获
+- `http_proxy.py` 添加请求超时配置 `PROXY_TIMEOUT`（30秒）
+- `const.py` 添加 `PLATFORMS` 常量（HA 标准）
+- `hacs.json` 添加 `zip_release` 配置
+- `manifest.json` codeowners 添加 `@Sid`
+
+### 变更
+- `config_flow.py` `OptionsFlow.__init__` 添加类型注解 `entry: ConfigEntry` -> `None`
+- `http_proxy.py` ClientSession 创建时传入 `timeout=PROXY_TIMEOUT`
+
 ## 0.2.4 (2026-06-19)
 
 ### 新增
