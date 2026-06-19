@@ -37,10 +37,16 @@
 
 ### 通过 HACS 安装（推荐）
 
-1. 在 HACS 中搜索「侧边栏面板」或「panel_iframe」
-2. 点击安装
-3. 重启 Home Assistant
-4. 刷新页面
+由于本插件不在 HACS 默认仓库中，需要先添加自定义仓库：
+
+1. 打开 HACS → 右上角 ⋯ → 自定义仓库
+2. 仓库地址填入：`https://github.com/sctale/panel_iframe`
+3. 类别选择：集成
+4. 点击添加
+5. 在 HACS 中搜索「侧边栏面板」或「panel_iframe」
+6. 点击安装
+7. 重启 Home Assistant
+8. 刷新页面
 
 ### 手动安装
 
