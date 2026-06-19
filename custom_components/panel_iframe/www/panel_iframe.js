@@ -51,6 +51,14 @@ class HaPanelIframe extends HTMLElement {
     event.stopPropagation();
   }
 
+  /** HTML 转义，防止 XSS */
+  _escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   /** 规范化 URL：支持端口号、双斜杠、冒号开头的简写 */
   _normalizeUrl(url) {
     if (!url) return '';
@@ -76,8 +84,8 @@ class HaPanelIframe extends HTMLElement {
     const url = this._normalizeUrl(config.url);
     const mode = config.mode;
 
-    // 内置页面 - 在 HA 内部导航
-    if (mode == 3) {
+    // 内置页面 - 在 HA 内部导航（使用原始路径，不规范化）
+    if (mode === '3') {
       history.replaceState(null, null, config.url);
       return this._fireEvent('location-changed', { replace: true });
     }
@@ -89,7 +97,7 @@ class HaPanelIframe extends HTMLElement {
     }
 
     // 全屏模式
-    if (mode == 1) {
+    if (mode === '1') {
       this._renderFullscreen(title, url);
       return;
     }
@@ -100,6 +108,8 @@ class HaPanelIframe extends HTMLElement {
 
   /** 渲染 HTTPS 安全提示 */
   _renderHttpsWarning(title, url) {
+    const safeTitle = this._escapeHtml(title);
+    const safeUrl = this._escapeHtml(url);
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; height: 100%; background: var(--primary-background-color); }
@@ -117,17 +127,17 @@ class HaPanelIframe extends HTMLElement {
           transition: all 0.2s ease; }
         .open-btn:hover { background: var(--primary-color); color: white; }
       </style>
-      <div class="toolbar">
+      <div class="toolbar" role="banner">
         <ha-menu-button></ha-menu-button>
-        <div class="main-title">${title}</div>
+        <div class="main-title">${safeTitle}</div>
       </div>
-      <div class="container">
-        <div class="warning-icon">&#9888;&#65039;</div>
+      <div class="container" role="alert">
+        <div class="warning-icon" aria-hidden="true">&#9888;&#65039;</div>
         <div class="message">
           由于浏览器安全限制，HTTPS 页面无法嵌入 HTTP 内容<br>
           请在新标签页中打开此链接
         </div>
-        <a class="open-btn" href="${url}" target="_blank" rel="noreferrer">在新标签页打开</a>
+        <a class="open-btn" href="${safeUrl}" target="_blank" rel="noreferrer noopener">在新标签页打开</a>
       </div>
     `;
     this._updateMenuButton();
@@ -135,6 +145,8 @@ class HaPanelIframe extends HTMLElement {
 
   /** 渲染全屏模式 */
   _renderFullscreen(title, url) {
+    const safeTitle = this._escapeHtml(title);
+    const safeUrl = this._escapeHtml(url);
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; height: 100%; background: var(--primary-background-color);
@@ -146,9 +158,10 @@ class HaPanelIframe extends HTMLElement {
           border-top-color: var(--primary-color); border-radius: 50%;
           animation: spin 0.8s linear infinite; margin-right: 12px; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        iframe { border: none; width: 100%; height: 100vh; display: none; }
-        iframe.loaded { display: block; }
-        iframe.loaded + .loading { display: none; }
+        .iframe-wrapper { display: none; width: 100%; height: 100vh; }
+        .iframe-wrapper.loaded { display: block; }
+        .iframe-wrapper.loaded ~ .loading { display: none; }
+        iframe { border: none; width: 100%; height: 100%; }
         .nav-btn { position: fixed; bottom: 16px; right: 16px; z-index: 10;
           background: var(--card-background-color, white); border-radius: 50%;
           box-shadow: 0 2px 8px rgba(0,0,0,0.2); width: 48px; height: 48px;
@@ -156,13 +169,16 @@ class HaPanelIframe extends HTMLElement {
           border: none; }
         .nav-btn:hover { background: var(--secondary-background-color, #f5f5f5); }
       </style>
-      <div class="loading"><div class="spinner"></div>加载中...</div>
-      <iframe allow="fullscreen" src="${url}"></iframe>
+      <div class="iframe-wrapper">
+        <iframe title="${safeTitle}" allow="fullscreen" src="${safeUrl}"></iframe>
+      </div>
+      <div class="loading" role="status"><div class="spinner" aria-hidden="true"></div>加载中...</div>
     `;
 
+    const wrapper = this.shadowRoot.querySelector('.iframe-wrapper');
     const iframe = this.shadowRoot.querySelector('iframe');
     iframe.addEventListener('load', () => {
-      iframe.classList.add('loaded');
+      wrapper.classList.add('loaded');
     });
 
     // 移动端导航按钮
@@ -170,6 +186,7 @@ class HaPanelIframe extends HTMLElement {
       const btn = document.createElement('button');
       btn.className = 'nav-btn';
       btn.title = '打开菜单';
+      btn.setAttribute('aria-label', '打开侧边栏菜单');
       btn.innerHTML = '<ha-icon icon="mdi:menu" style="color:var(--primary-text-color)"></ha-icon>';
       btn.addEventListener('click', this._toggleMenu.bind(this));
       this.shadowRoot.appendChild(btn);
@@ -178,6 +195,8 @@ class HaPanelIframe extends HTMLElement {
 
   /** 渲染默认模式（带工具栏） */
   _renderDefault(title, url, mode) {
+    const safeTitle = this._escapeHtml(title);
+    const safeUrl = this._escapeHtml(url);
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; height: 100%; background: var(--primary-background-color);
@@ -199,23 +218,27 @@ class HaPanelIframe extends HTMLElement {
           border-top-color: var(--primary-color); border-radius: 50%;
           animation: spin 0.8s linear infinite; margin-right: 12px; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        iframe { border: none; width: 100%; height: 100%; display: none; }
-        iframe.loaded { display: block; }
-        iframe.loaded ~ .loading { display: none; }
+        .iframe-wrapper { display: none; width: 100%; height: 100%; }
+        .iframe-wrapper.loaded { display: block; }
+        .iframe-wrapper.loaded ~ .loading { display: none; }
+        iframe { border: none; width: 100%; height: 100%; }
       </style>
-      <div class="toolbar">
+      <div class="toolbar" role="banner">
         <ha-menu-button></ha-menu-button>
-        <div class="main-title">${title}</div>
+        <div class="main-title">${safeTitle}</div>
       </div>
       <div class="content">
-        <iframe allow="fullscreen" src="/panel_iframe_www/index.html?mode=${mode}&url=${encodeURIComponent(url)}"></iframe>
-        <div class="loading"><div class="spinner"></div>加载中...</div>
+        <div class="iframe-wrapper">
+          <iframe title="${safeTitle}" allow="fullscreen" src="/panel_iframe_www/index.html?mode=${mode}&url=${encodeURIComponent(url)}"></iframe>
+        </div>
+        <div class="loading" role="status"><div class="spinner" aria-hidden="true"></div>加载中...</div>
       </div>
     `;
 
+    const wrapper = this.shadowRoot.querySelector('.iframe-wrapper');
     const iframe = this.shadowRoot.querySelector('iframe');
     iframe.addEventListener('load', () => {
-      iframe.classList.add('loaded');
+      wrapper.classList.add('loaded');
     });
 
     this._updateMenuButton();

@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.6 (2026-06-19)
+
+### 安全
+- `panel_iframe.js` 添加 `_escapeHtml()` 方法，对 title 和 url 进行 HTML 转义防止 XSS
+- `index.html` 外部链接添加 `rel="noreferrer noopener"` 防止 `window.opener` 攻击
+
+### 新增
+- `panel_iframe.js` iframe 添加 `title` 属性（无障碍访问）
+- `panel_iframe.js` 添加 ARIA 属性：`role="banner"`（工具栏）、`role="alert"`（警告）、`role="status"`（加载状态）、`aria-hidden`（装饰元素）、`aria-label`（导航按钮）
+- `index.html` 添加 `role="status"`、`role="button"`、`tabindex`、`aria-label` 等无障碍属性
+- `index.html` 添加键盘事件支持（Enter 键打开链接）
+- `index.html` 添加 `<meta http-equiv="X-UA-Compatible">` 兼容性标签
+- `index.html` 添加 `'use strict'` 严格模式
+
+### 变更
+- `panel_iframe.js` mode 比较从 `==` 改为 `===`（严格比较）
+- `panel_iframe.js` 内置页面模式使用 `config.url` 原始路径（不经过 URL 规范化）
+- `panel_iframe.js` iframe 加载状态改用 `.iframe-wrapper` 包裹层 + CSS `~` 兄弟选择器，修复之前 `+` 选择器不生效的问题
+
 ## 0.2.5 (2026-06-19)
 
 ### 新增

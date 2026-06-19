@@ -3,6 +3,7 @@
 
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport"
     content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
   <title>侧边栏面板</title>
@@ -61,38 +62,40 @@
       font-weight: 500;
       color: #333;
       margin-top: 16px;
+      cursor: pointer;
     }
   </style>
 </head>
 
 <body>
-  <div class="info">
-    <div class="loader">加载中...</div>
-    <a id="link" target="_blank"></a>
-    <div id="host" class="host"></div>
+  <div class="info" role="status">
+    <div class="loader" aria-label="加载中">加载中...</div>
+    <a id="link" target="_blank" rel="noreferrer noopener"></a>
+    <div id="host" class="host" role="button" tabindex="0"></div>
   </div>
   <script>
     (function () {
+      'use strict';
       if (!location.search) return;
 
-      const query = new URLSearchParams(location.search);
-      const url = decodeURIComponent(query.get('url') || '');
-      const mode = query.get('mode');
+      var query = new URLSearchParams(location.search);
+      var url = decodeURIComponent(query.get('url') || '');
+      var mode = query.get('mode');
 
       if (!url) return;
 
       // 显示链接信息
-      const linkEl = document.getElementById('link');
-      const hostEl = document.getElementById('host');
+      var linkEl = document.getElementById('link');
+      var hostEl = document.getElementById('host');
       linkEl.textContent = url;
       linkEl.href = url;
 
       if (url.startsWith('http')) {
         try {
-          const uri = new URL(url);
+          var uri = new URL(url);
           hostEl.textContent = uri.host;
-          hostEl.onclick = () => window.open(uri.origin);
-          hostEl.style.cursor = 'pointer';
+          hostEl.onclick = function () { window.open(uri.origin); };
+          hostEl.onkeydown = function (e) { if (e.key === 'Enter') window.open(uri.origin); };
         } catch (e) {
           // URL 解析失败，忽略
         }
