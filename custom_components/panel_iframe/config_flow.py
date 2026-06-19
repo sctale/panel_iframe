@@ -30,6 +30,8 @@ from .const import (
     DEFAULT_REQUIRE_ADMIN,
     DEFAULT_PROXY_ACCESS,
     MODE_LIST,
+    MODE_BUILTIN,
+    URL_ALLOWED_SCHEMES,
 )
 
 MODE_OPTIONS: list[SelectOptionDict] = [
@@ -89,6 +91,27 @@ class PanelIframeOptionsFlow(OptionsFlow):
         """选项流程初始步骤"""
         return await self.async_step_user(user_input)
 
+    def _validate_url(self, url: str, mode: str) -> str | None:
+        """验证 URL 格式，返回错误键名或 None"""
+        # 内置页面模式：必须是 / 开头的 HA 内部路径
+        if mode == MODE_BUILTIN:
+            if not url.startswith("/"):
+                return "invalid_builtin_url"
+            return None
+        # 其他模式：必须是完整 URL 或可识别的简写
+        if url.startswith(URL_ALLOWED_SCHEMES):
+            return None
+        # 纯端口号（如 1880）
+        if url.isdigit():
+            return None
+        # 双斜杠开头（如 //192.168.1.1:1880）
+        if url.startswith("//"):
+            return None
+        # 冒号开头（如 :1880/node-red/）
+        if url.startswith(":") and len(url) > 1:
+            return None
+        return "invalid_url"
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -97,20 +120,26 @@ class PanelIframeOptionsFlow(OptionsFlow):
 
         if user_input is not None:
             url = user_input[CONF_URL].strip()
+            mode = user_input[CONF_MODE]
 
             # URL 不能为空
             if not url:
                 errors[CONF_URL] = "empty_url"
             else:
-                # 规范化图标格式
-                user_input[CONF_ICON] = user_input[CONF_ICON].strip().replace("mdi-", "mdi:")
-                user_input[CONF_URL] = url
+                # 验证 URL 格式
+                url_error = self._validate_url(url, mode)
+                if url_error:
+                    errors[CONF_URL] = url_error
+                else:
+                    # 规范化图标格式
+                    user_input[CONF_ICON] = user_input[CONF_ICON].strip().replace("mdi-", "mdi:")
+                    user_input[CONF_URL] = url
 
-                # 内置页面禁止使用代理
-                if user_input[CONF_MODE] == "3":
-                    user_input[CONF_PROXY_ACCESS] = False
+                    # 内置页面禁止使用代理
+                    if mode == MODE_BUILTIN:
+                        user_input[CONF_PROXY_ACCESS] = False
 
-                return self.async_create_entry(title="", data=user_input)
+                    return self.async_create_entry(title="", data=user_input)
 
         options = self._entry.options
         return self.async_show_form(
@@ -119,7 +148,7 @@ class PanelIframeOptionsFlow(OptionsFlow):
             data_schema=vol.Schema({
                 vol.Required(CONF_ICON, default=options.get(CONF_ICON, DEFAULT_ICON)): IconSelector(),
                 vol.Required(CONF_URL, default=options.get(CONF_URL, "")): TextSelector(
-                    TextSelectorConfig()
+                    TextSelectorConfig(placeholder="placeholder_url")
                 ),
                 vol.Required(CONF_MODE, default=options.get(CONF_MODE, DEFAULT_MODE)): SelectSelector(
                     SelectSelectorConfig(options=MODE_OPTIONS, translation_key="mode")

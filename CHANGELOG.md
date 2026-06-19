@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 (2026-06-19)
+
+### 新增
+- 配置流程添加 URL 格式验证：支持 http/https/ws/wss 协议、端口号、双斜杠和冒号开头的简写格式
+- 内置页面模式验证 URL 必须以 `/` 开头
+- URL 输入框添加 placeholder 提示（`http://192.168.1.100:1880`）
+- `const.py` 添加 `URL_ALLOWED_SCHEMES` 常量
+- 翻译文件添加 `invalid_url` 和 `invalid_builtin_url` 错误消息
+
+### 变更
+- 配置流程内置页面模式判断从硬编码 `"3"` 改为使用 `MODE_BUILTIN` 常量
+- `config_flow.py` 提取 URL 验证逻辑为独立方法 `_validate_url()`
+
 ## 0.2.9 (2026-06-19)
 
 ### 变更

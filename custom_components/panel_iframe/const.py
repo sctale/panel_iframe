@@ -30,3 +30,6 @@ MODE_LIST = {
     MODE_NEW_PAGE: "新页面",
     MODE_BUILTIN: "内置页面",
 }
+
+# URL 验证：允许的协议前缀
+URL_ALLOWED_SCHEMES = ("http://", "https://", "ws://", "wss://")
