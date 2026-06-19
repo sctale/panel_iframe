@@ -5,73 +5,111 @@ from __future__ import annotations
 from typing import Any
 import voluptuous as vol
 
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
-from homeassistant.config_entries import ConfigFlow, OptionsFlow, ConfigEntry
+from homeassistant.data_entry_flow import section
+from homeassistant.helpers.selector import (
+    IconSelector,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectOptionDict,
+    TextSelector,
+    TextSelectorConfig,
+    BooleanSelector,
+    BooleanSelectorConfig,
+)
 
-from .manifest import manifest
+from .const import (
+    DOMAIN,
+    CONF_ICON,
+    CONF_URL,
+    CONF_MODE,
+    CONF_REQUIRE_ADMIN,
+    CONF_PROXY_ACCESS,
+    DEFAULT_ICON,
+    DEFAULT_MODE,
+    DEFAULT_REQUIRE_ADMIN,
+    DEFAULT_PROXY_ACCESS,
+    MODE_LIST,
+)
 
-mode_list = {
-    '0': '默认',
-    '1': '全屏',
-    '2': '新页面',
-    '3': '内置页面'
-}
+MODE_OPTIONS: list[SelectOptionDict] = [
+    {"value": k, "label": v} for k, v in MODE_LIST.items()
+]
 
-class SimpleConfigFlow(ConfigFlow, domain=manifest.domain):
+
+class PanelIframeConfigFlow(ConfigFlow, domain=DOMAIN):
     """处理配置流程"""
 
     VERSION = 1
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """处理用户步骤"""
         if user_input is None:
-            DATA_SCHEMA = vol.Schema({
-                vol.Required("title"): str,
-            })
-            return self.async_show_form(step_id="user", data_schema=DATA_SCHEMA)
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema({
+                    vol.Required("title"): TextSelector(
+                        TextSelectorConfig()
+                    ),
+                }),
+            )
 
-        return self.async_create_entry(title=user_input['title'], data=user_input)
+        return self.async_create_entry(title=user_input["title"], data=user_input)
 
     @staticmethod
     @callback
-    def async_get_options_flow(entry: ConfigEntry):
+    def async_get_options_flow(entry):
         """获取选项流程"""
-        return OptionsFlowHandler(entry)
+        return PanelIframeOptionsFlow(entry)
 
 
-class OptionsFlowHandler(OptionsFlow):
+class PanelIframeOptionsFlow(OptionsFlow):
     """处理选项流程"""
 
-    def __init__(self, config_entry: ConfigEntry):
+    def __init__(self, entry):
         super().__init__()
-        self._entry = config_entry
+        self._entry = entry
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """选项流程初始步骤"""
         return await self.async_step_user(user_input)
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """处理选项更新"""
         if user_input is None:
             options = self._entry.options
-            DATA_SCHEMA = vol.Schema({
-                vol.Required("icon", default=options.get('icon', 'mdi:link-box-outline')): str,
-                vol.Required("url", default=options.get('url', '')): str,
-                vol.Required("mode", default=options.get('mode', '0')): vol.In(mode_list),
-                vol.Required("require_admin", default=options.get('require_admin', False)): bool,
-                vol.Required("proxy_access", default=options.get('proxy_access', False)): bool,
-            })
-            return self.async_show_form(step_id="user", data_schema=DATA_SCHEMA)
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema({
+                    vol.Required(CONF_ICON, default=options.get(CONF_ICON, DEFAULT_ICON)): IconSelector(),
+                    vol.Required(CONF_URL, default=options.get(CONF_URL, "")): TextSelector(
+                        TextSelectorConfig()
+                    ),
+                    vol.Required(CONF_MODE, default=options.get(CONF_MODE, DEFAULT_MODE)): SelectSelector(
+                        SelectSelectorConfig(options=MODE_OPTIONS, translation_key="mode")
+                    ),
+                    vol.Required(CONF_REQUIRE_ADMIN, default=options.get(CONF_REQUIRE_ADMIN, DEFAULT_REQUIRE_ADMIN)): BooleanSelector(
+                        BooleanSelectorConfig()
+                    ),
+                    vol.Required(CONF_PROXY_ACCESS, default=options.get(CONF_PROXY_ACCESS, DEFAULT_PROXY_ACCESS)): BooleanSelector(
+                        BooleanSelectorConfig()
+                    ),
+                }),
+            )
 
         # 选项更新
-        user_input['icon'] = user_input['icon'].strip().replace('mdi-', 'mdi:')
-        user_input['url'] = user_input['url'].strip()
+        user_input[CONF_ICON] = user_input[CONF_ICON].strip().replace("mdi-", "mdi:")
+        user_input[CONF_URL] = user_input[CONF_URL].strip()
 
         # 内置页面禁止使用代理
-        if user_input['mode'] == '3':
-            user_input['proxy_access'] = False
+        if user_input[CONF_MODE] == "3":
+            user_input[CONF_PROXY_ACCESS] = False
 
-        return self.async_create_entry(title='', data=user_input)
+        return self.async_create_entry(title="", data=user_input)

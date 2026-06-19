@@ -7,11 +7,8 @@ from homeassistant.components import frontend
 from homeassistant.components.panel_custom import async_register_panel
 import homeassistant.helpers.config_validation as cv
 
-from .manifest import manifest
+from .const import DOMAIN
 from .http_proxy import HttpProxy
-
-DOMAIN = manifest.domain
-VERSION = manifest.version
 
 CONFIG_SCHEMA = cv.deprecated(DOMAIN)
 
@@ -40,7 +37,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     proxy_access = cfg.get("proxy_access", False)
 
     if url is not None:
-        module_url = f"/panel_iframe_www/panel_iframe.js?v={VERSION}"
+        version = entry.version
+        module_url = f"/panel_iframe_www/panel_iframe.js?v={version}"
 
         if proxy_access:
             proxy = HttpProxy(url)

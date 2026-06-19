@@ -3,9 +3,12 @@
         "step": {
             "user": {
                 "title": "Sidebar Panel",
-                "description": "Project: https://github.com/shaonianzhentan/panel_iframe",
+                "description": "Add a custom web page panel to the Home Assistant sidebar",
                 "data": {
-                    "title": "Name"
+                    "title": "Panel Name"
+                },
+                "data_description": {
+                    "title": "The name displayed in the sidebar, e.g. Node-RED"
                 }
             }
         },
@@ -15,17 +18,34 @@
     "options": {
         "step": {
             "user": {
-                "title": "Sidebar Panel",
-                "description": "Click the question mark icon to see all available icons, click to copy and use directly",
+                "title": "Panel Settings",
+                "description": "Configure the sidebar panel display",
                 "data": {
                     "icon": "Icon",
                     "url": "URL",
-                    "require_admin": "Admin Only",
                     "mode": "Display Mode",
-                    "proxy_access": "Proxy Access (Advanced)"
+                    "require_admin": "Admin Only",
+                    "proxy_access": "Proxy Access"
+                },
+                "data_description": {
+                    "icon": "Icon displayed in the sidebar, e.g. mdi:nodejs",
+                    "url": "Web page URL to embed, supports port numbers (e.g. 1880) and relative paths",
+                    "mode": "Choose how the panel is displayed",
+                    "require_admin": "When enabled, only admins can see this panel in the sidebar",
+                    "proxy_access": "Proxy requests through the HA server to resolve CORS issues (do not enable if unsure)"
                 }
             }
         },
         "error": {}
+    },
+    "selector": {
+        "mode": {
+            "options": {
+                "0": "Default - Embedded with toolbar",
+                "1": "Fullscreen - No toolbar",
+                "2": "New Page - Open in new tab",
+                "3": "Built-in - Navigate within HA"
+            }
+        }
     }
 }

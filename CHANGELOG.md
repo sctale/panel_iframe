@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.1 (2026-06-19)
+
+### 新增
+- 新增 `const.py` 集中管理常量（DOMAIN、配置键名、默认值、模式列表）
+- 新增 `strings.json` 标准 HA 翻译源文件（含 `data_description` 和 `selector` 翻译）
+- 配置流程使用 HA Selectors（IconSelector、TextSelector、SelectSelector、BooleanSelector），UI 体验大幅提升
+- 下拉选择模式替代原来的 vol.In，每个选项带详细描述
+- 图标字段使用 IconSelector，提供图标选择器 UI
+- 链接字段使用 TextSelector，提供文本输入 UI
+
+### 变更
+- 移除 `manifest.py`，改用 `const.py` + 直接读取 `manifest.json`，避免模块级实例化问题
+- `config_flow.py` 使用 `ConfigFlowResult` 替代 `FlowResult`（HA 2026 新命名）
+- `__init__.py` 使用 `entry.version` 替代 `manifest.VERSION` 作为缓存版本号
+- `__init__.py` 从 `const.py` 导入 `DOMAIN`，不再依赖 `manifest.py`
+- 翻译文件增加 `data_description` 字段，为每个配置项提供详细说明
+- 翻译文件增加 `selector` 翻译，支持下拉选择模式的本地化描述
+
 ## 0.2.0 (2026-06-19)
 
 ### 新增
