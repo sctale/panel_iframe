@@ -3,7 +3,7 @@
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.components import frontend
 from homeassistant.components.panel_custom import async_register_panel

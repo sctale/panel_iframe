@@ -70,7 +70,7 @@ class PanelIframeConfigFlow(ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(entry):
+    def async_get_options_flow(entry: ConfigEntry):
         """获取选项流程"""
         return PanelIframeOptionsFlow(entry)
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.9 (2026-06-19)
+
+### 变更
+- 移除 `__init__.py` 中未使用的 `ServiceCall` 导入
+- `config_flow.py` `async_get_options_flow` 添加 `entry: ConfigEntry` 类型注解
+- `const.py` `PLATFORMS` 类型从 `list` 改为 `list[str]`
+- README 新增「更新面板」和「删除面板」操作说明
+
 ## 0.2.8 (2026-06-19)
 
 ### 新增

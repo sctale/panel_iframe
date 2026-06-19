@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/Home-Assistant-%23049cdb)](https://www.home-assistant.io/)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
-[![version](https://img.shields.io/badge/version-0.2.8-blue)](https://github.com/sctale/panel_iframe)
+[![version](https://img.shields.io/badge/version-0.2.9-blue)](https://github.com/sctale/panel_iframe)
 
 在 Home Assistant 侧边栏添加自定义 iframe 面板，支持将任意网页嵌入到 HA 界面中。
 
@@ -118,6 +118,18 @@
 2. 每个面板可以独立配置图标、链接、模式等
 3. 在集成列表中可以修改或删除单个面板
 
+### 更新面板
+
+1. 进入 **设置 → 设备与服务**
+2. 找到对应的面板集成，点击「配置」
+3. 修改参数后点击提交，面板立即生效，无需重启
+
+### 删除面板
+
+1. 进入 **设置 → 设备与服务**
+2. 找到对应的面板集成，点击右上角 ⋯ → 删除
+3. 面板立即从侧边栏移除
+
 ## 已知限制
 
 - **HTTPS 混合内容**：当 HA 使用 HTTPS 时，无法在 iframe 中嵌入 HTTP 页面（浏览器安全限制），插件会自动提示在新标签页打开
@@ -128,7 +140,7 @@
 
 | HA 版本 | 插件版本 | 状态 |
 |---------|---------|------|
-| 2025.1+ | 0.2.8 | 兼容 |
+| 2025.1+ | 0.2.9 | 兼容 |
 
 ## 许可证
 

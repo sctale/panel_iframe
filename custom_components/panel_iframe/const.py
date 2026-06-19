@@ -3,7 +3,7 @@
 DOMAIN = "panel_iframe"
 
 # 平台列表（本集成无实体平台）
-PLATFORMS: list = []
+PLATFORMS: list[str] = []
 
 # 配置项键名
 CONF_ICON = "icon"
