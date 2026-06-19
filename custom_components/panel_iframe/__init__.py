@@ -17,6 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = cv.deprecated(DOMAIN)
 
 STATIC_PATH_KEY = f"{DOMAIN}_static_path_registered"
+PROXY_DATA_KEY = f"{DOMAIN}_proxies"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -52,6 +53,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             proxy = HttpProxy(url)
             proxy.register(hass.http.app.router)
             url = proxy.get_url()
+            # 存储代理实例到 hass.data，便于后续清理
+            hass.data.setdefault(PROXY_DATA_KEY, {})[entry.entry_id] = proxy
             _LOGGER.info("代理已注册: %s -> %s", proxy.proxy_path, proxy.proxy_host)
 
         await async_register_panel(
@@ -94,5 +97,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """移除配置项时清理"""
-    await HttpProxy.cleanup()
+    # 清理该面板的代理实例
+    proxies = hass.data.get(PROXY_DATA_KEY, {})
+    if entry.entry_id in proxies:
+        del proxies[entry.entry_id]
+    # 所有代理都已移除时，关闭共享 ClientSession
+    if not proxies:
+        await HttpProxy.cleanup()
     _LOGGER.info("配置项已清理: %s", entry.title)

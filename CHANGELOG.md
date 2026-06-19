@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.2 (2026-06-19)
+
+### 新增
+- 代理模块使用 `TCPConnector` 配置连接池（最多 100 连接，每 host 最多 30 连接）
+- 代理请求体大小限制（10MB），超出返回 413 错误
+- 代理响应处理 204/304 等无响应体状态码
+- WebSocket 代理传递 close code，添加 ERROR 消息类型处理
+- `__init__.py` 代理实例存储到 `hass.data`，支持多面板独立代理管理
+- `__init__.py` 仅在所有代理移除后才关闭共享 ClientSession
+
+### 变更
+- `HttpProxy.cleanup()` 同时关闭 Connector 和 ClientSession
+- `async_remove_entry` 改为按面板清理代理，而非全局清理
+
 ## 0.3.1 (2026-06-19)
 
 ### 安全

@@ -12,6 +12,9 @@ _LOGGER = logging.getLogger(__name__)
 # 代理请求超时（秒）
 PROXY_TIMEOUT = aiohttp.ClientTimeout(total=30)
 
+# 最大请求体大小（10MB）
+MAX_REQUEST_BODY = 10 * 1024 * 1024
+
 # 代理请求时过滤的请求头
 FILTERED_REQUEST_HEADERS = frozenset({
     'host', 'transfer-encoding', 'cookie', 'authorization',
@@ -23,12 +26,16 @@ FILTERED_RESPONSE_HEADERS = frozenset({
     'transfer-encoding', 'set-cookie',
 })
 
+# 跳过响应体的状态码（304 Not Modified 等）
+NO_BODY_STATUS_CODES = frozenset({204, 304})
+
 
 class HttpProxy:
     """HTTP 反向代理，用于在 HA 内访问外部页面"""
 
     # 类级别 ClientSession，跨请求复用
     _session: aiohttp.ClientSession | None = None
+    _connector: aiohttp.TCPConnector | None = None
 
     def __init__(self, url: str):
         parsed_url = urlparse(url)
@@ -46,18 +53,30 @@ class HttpProxy:
 
     @classmethod
     def _get_session(cls) -> aiohttp.ClientSession:
-        """获取或创建复用的 ClientSession"""
+        """获取或创建复用的 ClientSession（带连接池限制）"""
         if cls._session is None or cls._session.closed:
-            cls._session = aiohttp.ClientSession(timeout=PROXY_TIMEOUT)
+            # 连接池限制：最多 100 个连接，每个 host 最多 30 个
+            cls._connector = aiohttp.TCPConnector(
+                limit=100,
+                limit_per_host=30,
+                enable_cleanup_closed=True,
+            )
+            cls._session = aiohttp.ClientSession(
+                timeout=PROXY_TIMEOUT,
+                connector=cls._connector,
+            )
         return cls._session
 
     @classmethod
     async def cleanup(cls):
-        """清理 ClientSession（集成卸载时调用）"""
+        """清理 ClientSession 和 Connector（集成卸载时调用）"""
         if cls._session and not cls._session.closed:
             await cls._session.close()
             cls._session = None
-            _LOGGER.debug("代理 ClientSession 已关闭")
+        if cls._connector and not cls._connector.closed:
+            await cls._connector.close()
+            cls._connector = None
+        _LOGGER.debug("代理 ClientSession 和 Connector 已关闭")
 
     def register(self, router):
         """注册路由（如果路由已存在则跳过）"""
@@ -101,6 +120,16 @@ class HttpProxy:
         if request.query_string:
             target += '?' + request.query_string
 
+        # 请求体大小限制
+        body = await request.read()
+        if len(body) > MAX_REQUEST_BODY:
+            _LOGGER.warning("代理请求体过大: %d bytes (限制 %d)", len(body), MAX_REQUEST_BODY)
+            return web.Response(
+                status=413,
+                text="请求体过大",
+                content_type="text/plain",
+            )
+
         session = self._get_session()
         try:
             async with session.request(
@@ -108,13 +137,16 @@ class HttpProxy:
                 url=target,
                 headers={k: v for k, v in request.headers.items()
                          if k.lower() not in FILTERED_REQUEST_HEADERS},
-                data=await request.read(),
+                data=body,
                 ssl=False,
             ) as resp:
                 headers = {k: v for k, v in resp.headers.items()
                            if k.lower() not in FILTERED_RESPONSE_HEADERS}
-                body = await resp.read()
-                return web.Response(body=body, status=resp.status, headers=headers)
+                # 无响应体的状态码
+                if resp.status in NO_BODY_STATUS_CODES:
+                    return web.Response(status=resp.status, headers=headers)
+                response_body = await resp.read()
+                return web.Response(body=response_body, status=resp.status, headers=headers)
         except aiohttp.ClientError as err:
             _LOGGER.warning("代理请求失败 %s: %s", target, err)
             return web.Response(
@@ -146,6 +178,9 @@ class HttpProxy:
                         elif msg.type == aiohttp.WSMsgType.BINARY:
                             await ws_to.send_bytes(msg.data)
                         elif msg.type == aiohttp.WSMsgType.CLOSE:
+                            await ws_to.close(code=msg.data, message=b'')
+                        elif msg.type == aiohttp.WSMsgType.ERROR:
+                            _LOGGER.debug("WebSocket 错误: %s", ws_from.exception())
                             await ws_to.close()
 
                 await asyncio.gather(

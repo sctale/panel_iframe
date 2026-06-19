@@ -1,6 +1,6 @@
 {
   "name": "panel_iframe",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Home Assistant 侧边栏面板 - 在侧边栏添加自定义 iframe 面板",
   "private": true,
   "scripts": {
